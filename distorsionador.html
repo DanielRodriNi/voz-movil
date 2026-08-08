@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>voz-tts — Distorsionador</title>
+<meta name="description" content="Efectos de voz en tiempo real desde el micrófono, 100% en el navegador.">
+<meta name="theme-color" content="#111318">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="voz-tts">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --border: #dfe3e8;
+    --text: #1a1d21;
+    --muted: #656d76;
+    --accent: #2f6fed;
+    --accent-text: #ffffff;
+    --ok: #1a7f4b;
+    --err: #c0362c;
+    --warn: #9a5b00;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111318;
+      --surface: #1a1e25;
+      --border: #2c323b;
+      --text: #e7eaee;
+      --muted: #9aa4b1;
+      --accent: #5b8dff;
+      --accent-text: #0d1117;
+      --ok: #4ad48a;
+      --err: #ff7a6e;
+      --warn: #e0a458;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+    max-width: 720px;
+    margin: 0 auto;
+    -webkit-text-size-adjust: 100%;
+  }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+  header .titles { display: flex; align-items: baseline; gap: 10px; }
+  h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
+  header span.tag { color: var(--muted); font-size: .8rem; }
+  nav a { color: var(--accent); text-decoration: none; font-size: .85rem; font-weight: 600; }
+  .row { margin-bottom: 14px; }
+  button {
+    font: inherit; color: var(--text); width: 100%;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); padding: 12px 14px; cursor: pointer;
+  }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.primary {
+    background: var(--accent); color: var(--accent-text);
+    border-color: transparent; font-weight: 600; padding: 15px;
+  }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  .effects { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .effects button { padding: 14px 6px; font-size: .88rem; font-weight: 500; text-align: center; }
+  .effects button.on { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+  .effects button:disabled { opacity: .4; cursor: default; }
+  .toggle { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--surface); }
+  .toggle input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+  .toggle label { font-size: .88rem; }
+  .warn-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn);
+    border-radius: 10px; padding: 12px 14px; font-size: .85rem; color: var(--muted); margin-bottom: 14px; }
+  #status { margin-top: 14px; font-size: .88rem; color: var(--muted); min-height: 1.4em; }
+  #status.err { color: var(--err); }
+  #status.ok { color: var(--ok); }
+  #result { margin-top: 18px; display: none; }
+  #result[data-on] { display: block; }
+  audio { width: 100%; margin-bottom: 10px; }
+  a.dl { display: inline-block; text-decoration: none; color: var(--accent);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 10px 16px; font-size: .9rem; font-weight: 500; background: var(--surface); }
+  .rec-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--err);
+    margin-right: 7px; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  footer { margin-top: 26px; font-size: .76rem; color: var(--muted); line-height: 1.9; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="titles">
+    <h1>Distorsionador</h1>
+    <span class="tag">efectos de voz en directo</span>
+  </div>
+  <nav><a href="index.html">← Texto a voz</a></nav>
+</header>
+
+<div class="warn-box">
+  <b>Usa auriculares</b> si activas la escucha en directo: el micrófono y el altavoz del
+  móvil están demasiado cerca y se produce un pitido de realimentación. Sin auriculares,
+  deja la escucha apagada y usa solo «Grabar».
+</div>
+
+<div class="row">
+  <button class="primary" id="mic">Activar micrófono</button>
+</div>
+
+<div class="row effects" id="effects">
+  <button data-fx="normal" class="on" disabled>Normal</button>
+  <button data-fx="grave" disabled>Voz grave</button>
+  <button data-fx="aguda" disabled>Voz aguda</button>
+  <button data-fx="robot" disabled>Robot</button>
+  <button data-fx="eco" disabled>Eco</button>
+  <button data-fx="telefono" disabled>Teléfono</button>
+</div>
+
+<div class="row toggle">
+  <input type="checkbox" id="monitor" disabled>
+  <label for="monitor">🔊 Escuchar en directo (requiere auriculares)</label>
+</div>
+
+<div class="row">
+  <button id="rec" disabled>● Grabar</button>
+</div>
+
+<div id="status"></div>
+
+<div id="result">
+  <audio id="player" controls></audio>
+  <a class="dl" id="dl" download="distorsion.wav">Descargar WAV</a>
+</div>
+
+<footer>
+  Todo el procesado ocurre en tu dispositivo: el audio del micrófono nunca sale de aquí.
+  No hace falta descargar ningún modelo — los efectos son puro procesado de audio del
+  propio navegador.
+</footer>
+
+<script type="module" src="distorsionador.js"></script>
+</body>
+</html>

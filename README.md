@@ -1,9 +1,13 @@
-# Voz — texto a voz en el móvil, sin servidor
+# Voz — texto a voz y distorsionador en el móvil, sin servidor
 
-App web estática que convierte texto en audio **dentro del propio navegador**, con
-[Piper](https://github.com/rhasspy/piper) (ONNX Runtime Web + espeak-ng compilados a WebAssembly).
+App web estática con dos páginas independientes, ambas 100% en el navegador:
 
-No hay backend, no hay API, no hay coste. El texto nunca sale del dispositivo.
+- **`index.html`** — texto a voz con [Piper](https://github.com/rhasspy/piper)
+  (ONNX Runtime Web + espeak-ng compilados a WebAssembly).
+- **`distorsionador.html`** — efectos de voz en tiempo real desde el micrófono
+  (Web Audio API pura, sin modelos ni descargas).
+
+No hay backend, no hay API, no hay coste. El audio nunca sale del dispositivo.
 Se puede publicar en GitHub Pages, Netlify o cualquier hosting estático.
 
 ## Cómo funciona
@@ -84,3 +88,28 @@ disponible, la app lo detecta y lo dice en vez de fallar en silencio.
 
 En iPhone la generación es más lenta que en Android (Safari no permite hilos en WASM) y
 el sistema puede purgar la caché si queda poco espacio; entonces la voz se vuelve a descargar.
+
+## Distorsionador (`distorsionador.html`)
+
+Efectos de voz en directo desde el micrófono: voz grave, voz aguda, robot, eco y teléfono.
+Nada de esto usa modelos ni IA — es Web Audio API nativa, salvo el cambio de tono.
+
+- **Voz grave / aguda**: `worklets/voice-fx-worklet.js` implementa un cambiador de tono
+  granular casero (dos "granos" leyendo un buffer circular a velocidad distinta de 1,
+  desfasados medio grano y con envolvente senoidal para que la mezcla no caiga a
+  silencio). Es la misma familia de técnica que usan los pedales de guitarra baratos:
+  tiene un temblor audible que se nota más cuanto mayor es el semitono. Se limita a
+  ±7 semitonos porque a partir de ahí el margen del buffer circular deja de ser seguro
+  con este diseño (ver comentarios en el fichero).
+- **Robot**: modulación en anillo — un oscilador de ~45 Hz conectado directamente al
+  `AudioParam` de ganancia multiplica la señal por la onda.
+- **Eco**: `DelayNode` con realimentación (0,32 s, ganancia 0,35) mezclado con la señal seca.
+- **Teléfono**: filtro paso banda (~1600 Hz, Q 0,7) + un `WaveShaperNode` con `tanh` como
+  saturación suave.
+- **Grabación**: no usa `MediaRecorder` (el soporte de formatos en iOS es poco fiable);
+  un `AudioWorkletProcessor` ("tap") reenvía los bloques Float32 ya procesados al hilo
+  principal, que los concatena y codifica a WAV con la misma función `encodeWav` de
+  `wav.js` que usa el texto a voz.
+- **Auriculares**: si activas "Escuchar en directo" sin auriculares, el micrófono capta
+  lo que sale del altavoz y se realimenta (pitido). La grabación no depende de esto —
+  funciona igual con la escucha en directo apagada.

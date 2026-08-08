@@ -1,6 +1,8 @@
 // Texto a voz 100% en el navegador con Piper (ONNX Runtime Web + espeak-ng en WASM).
 // No hay servidor: el modelo se descarga una vez y se guarda en el dispositivo.
 
+import { encodeWav } from './wav.js';
+
 // Copia local parcheada: la oficial de jsDelivr fuerza siempre el hablante 0
 // en voces multi-hablante (ver vendor/piper-tts-web.js).
 const PIPER_URL = './vendor/piper-tts-web.js';
@@ -83,34 +85,6 @@ function splitText(text, maxLen = 300) {
     if (buf) chunks.push(buf);
   }
   return chunks.length ? chunks : [text.trim()];
-}
-
-/** Codifica muestras Float32 mono en un WAV PCM 16 bits. */
-function encodeWav(samples, sampleRate) {
-  const buf = new ArrayBuffer(44 + samples.length * 2);
-  const view = new DataView(buf);
-  const str = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
-
-  str(0, 'RIFF');
-  view.setUint32(4, 36 + samples.length * 2, true);
-  str(8, 'WAVE');
-  str(12, 'fmt ');
-  view.setUint32(16, 16, true);      // tamaño del bloque fmt
-  view.setUint16(20, 1, true);       // PCM
-  view.setUint16(22, 1, true);       // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);       // block align
-  view.setUint16(34, 16, true);      // bits por muestra
-  str(36, 'data');
-  view.setUint32(40, samples.length * 2, true);
-
-  let off = 44;
-  for (let i = 0; i < samples.length; i++, off += 2) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-  }
-  return new Blob([buf], { type: 'audio/wav' });
 }
 
 /**

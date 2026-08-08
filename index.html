@@ -49,9 +49,11 @@
     margin: 0 auto;
     -webkit-text-size-adjust: 100%;
   }
-  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+  header .titles { display: flex; align-items: baseline; gap: 10px; }
   h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
   header span { color: var(--muted); font-size: .8rem; }
+  header nav a { color: var(--accent); text-decoration: none; font-size: .85rem; font-weight: 600; }
   label { display: block; font-size: .82rem; color: var(--muted); margin: 0 0 6px; font-weight: 500; }
   textarea, select, button {
     font: inherit; color: var(--text); width: 100%;
@@ -96,8 +98,11 @@
 <body>
 
 <header>
-  <h1>Voz</h1>
-  <span>texto a voz, sin servidor</span>
+  <div class="titles">
+    <h1>Voz</h1>
+    <span>texto a voz, sin servidor</span>
+  </div>
+  <nav><a href="distorsionador.html">Distorsionador →</a></nav>
 </header>
 
 <div class="row">

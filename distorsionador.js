@@ -11,7 +11,7 @@ const els = {
   dogPlayer: $('dogPlayer'), dogDl: $('dogDl'), dogApply: $('dogApply'),
   subtabLive: $('subtabLive'), subtabDog: $('subtabDog'),
   tabLive: $('tab-live'), tabDog: $('tab-dog'),
-  dogSpeed: $('dogSpeed'), dogSpeedVal: $('dogSpeedVal'),
+  dogPitch: $('dogPitch'), dogPitchVal: $('dogPitchVal'),
   dogSoft: $('dogSoft'), dogSoftVal: $('dogSoftVal'),
   dogBright: $('dogBright'), dogBrightVal: $('dogBrightVal'),
   dogWarmth: $('dogWarmth'), dogWarmthVal: $('dogWarmthVal'),
@@ -44,7 +44,7 @@ function showTab(tab) {
 
 // --- Sliders de "voz de perrito": persisten en localStorage y regeneran solos al soltar ---
 const dogSliders = [
-  { el: els.dogSpeed, val: els.dogSpeedVal, key: 'speed', fmt: (v) => v.toFixed(2) + '×' },
+  { el: els.dogPitch, val: els.dogPitchVal, key: 'pitch', fmt: (v) => (v > 0 ? '+' : '') + v + ' st' },
   { el: els.dogSoft, val: els.dogSoftVal, key: 'soft', fmt: (v) => Math.round(v) + ' Hz' },
   { el: els.dogBright, val: els.dogBrightVal, key: 'bright', fmt: (v) => v.toFixed(1) + ' dB' },
   { el: els.dogWarmth, val: els.dogWarmthVal, key: 'warmth', fmt: (v) => Math.round(v) + '%' },
@@ -66,7 +66,7 @@ for (const s of dogSliders) {
 
 function dogParams() {
   return {
-    speed: Number(els.dogSpeed.value),
+    semitones: Number(els.dogPitch.value),
     soft: Number(els.dogSoft.value),
     bright: Number(els.dogBright.value),
     warmth: Number(els.dogWarmth.value) / 100,
@@ -305,25 +305,68 @@ function dogSay(msg, kind = '') {
 }
 
 /**
- * Sube el tono Y los formantes a la vez remuestreando el audio (el mismo truco
- * de toda la vida del "efecto ardilla" de los dibujos: se reproduce mas rapido
- * y suena mas pequeño y agudo), suaviza el timbre para quitar aspereza, añade
- * un toque de brillo y un pelín de reverb calida. Todo con nodos nativos de
- * Web Audio -- nada de esto es un algoritmo casero, por eso no tiene el
- * temblor de los efectos en directo.
+ * Estira o comprime el audio en el tiempo SIN tocar el tono, mediante solapa-y-suma
+ * (OLA): trocea la señal en ventanas de Hann que se leen cada `Ha` muestras y se
+ * vuelven a escribir cada `Hs` muestras (mas separadas si se alarga, mas juntas si
+ * se acorta). Se normaliza por la suma real de ventanas en cada punto, en vez de
+ * asumir solape perfecto, porque `Hs` varia y esa asuncion solo vale cuando no se
+ * estira nada.
+ *
+ * Es la mitad del truco para cambiar el tono sin cambiar la duracion: primero se
+ * estira aqui (a duracion final = original * ratio), y despues se remuestrea a
+ * velocidad `ratio` -- eso vuelve a comprimir la duracion a la original, pero como
+ * el remuestreo tambien es lo que desplaza el tono, el resultado es tono desplazado
+ * y duracion intacta.
+ */
+function timeStretch(samples, ratio, sampleRate) {
+  const frameSize = Math.max(256, Math.round(sampleRate * 0.04)) & ~1; // ~40ms, par
+  const Ha = frameSize / 2; // salto de analisis (lectura), fijo
+  const Hs = Math.max(1, Math.round(Ha * ratio)); // salto de sintesis (escritura)
+
+  const win = new Float32Array(frameSize);
+  for (let i = 0; i < frameSize; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (frameSize - 1));
+
+  const numFrames = Math.max(0, Math.floor((samples.length - frameSize) / Ha) + 1);
+  const outLen = numFrames > 0 ? (numFrames - 1) * Hs + frameSize : frameSize;
+  const out = new Float32Array(outLen);
+  const norm = new Float32Array(outLen);
+
+  let inPos = 0, outPos = 0;
+  for (let f = 0; f < numFrames; f++) {
+    for (let i = 0; i < frameSize; i++) {
+      const s = samples[inPos + i] * win[i];
+      out[outPos + i] += s;
+      norm[outPos + i] += win[i];
+    }
+    inPos += Ha;
+    outPos += Hs;
+  }
+  for (let i = 0; i < out.length; i++) {
+    if (norm[i] > 1e-6) out[i] /= norm[i];
+  }
+  return out;
+}
+
+/**
+ * Cambia el tono en semitonos SIN afectar a la duracion (estira en el tiempo y
+ * despues remuestrea, ver `timeStretch`), suaviza el timbre para quitar aspereza,
+ * añade un toque de brillo y un pelín de reverb calida.
  */
 async function makePerritoVoice(samples, sampleRate, params) {
-  const { speed, soft, bright, warmth } = params;
+  const { semitones, soft, bright, warmth } = params;
+  const ratio = 2 ** (semitones / 12);
 
-  const dryBuffer = audioCtx.createBuffer(1, samples.length, sampleRate);
-  dryBuffer.copyToChannel(samples, 0);
+  const stretched = Math.abs(semitones) < 0.01 ? samples : timeStretch(samples, ratio, sampleRate);
 
-  const outLength = Math.ceil(samples.length / speed) + sampleRate; // margen para la cola de la reverb
+  const dryBuffer = audioCtx.createBuffer(1, stretched.length, sampleRate);
+  dryBuffer.copyToChannel(stretched, 0);
+
+  const outLength = Math.ceil(stretched.length / ratio) + sampleRate; // margen para la cola de la reverb
   const off = new OfflineAudioContext(1, outLength, sampleRate);
 
   const src = off.createBufferSource();
   src.buffer = dryBuffer;
-  src.playbackRate.value = speed;
+  src.playbackRate.value = ratio;
 
   // Quita aspereza en agudos (las "eses" se vuelven muy afiladas al subir el tono)
   const lowpass = off.createBiquadFilter();

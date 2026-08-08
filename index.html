@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Voz — Texto a voz</title>
+<meta name="description" content="Texto a voz en español, 100% en el navegador.">
+<meta name="theme-color" content="#111318">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --border: #dfe3e8;
+    --text: #1a1d21;
+    --muted: #656d76;
+    --accent: #2f6fed;
+    --accent-text: #ffffff;
+    --ok: #1a7f4b;
+    --err: #c0362c;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111318;
+      --surface: #1a1e25;
+      --border: #2c323b;
+      --text: #e7eaee;
+      --muted: #9aa4b1;
+      --accent: #5b8dff;
+      --accent-text: #0d1117;
+      --ok: #4ad48a;
+      --err: #ff7a6e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+    max-width: 720px;
+    margin: 0 auto;
+    -webkit-text-size-adjust: 100%;
+  }
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; }
+  h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
+  header span { color: var(--muted); font-size: .8rem; }
+  label { display: block; font-size: .82rem; color: var(--muted); margin: 0 0 6px; font-weight: 500; }
+  textarea, select, button {
+    font: inherit; color: var(--text); width: 100%;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); padding: 12px 14px;
+  }
+  textarea { min-height: 170px; resize: vertical; line-height: 1.55; }
+  select { appearance: none; -webkit-appearance: none; padding-right: 38px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 20px) 55%, calc(100% - 14px) 55%;
+    background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; }
+  textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 520px) { .grid { grid-template-columns: 1fr auto; align-items: end; } }
+  #speedWrap { min-width: 190px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
+  button.primary {
+    background: var(--accent); color: var(--accent-text);
+    border-color: transparent; font-weight: 600; padding: 15px;
+    cursor: pointer; margin-top: 4px;
+  }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  #status { margin-top: 14px; font-size: .88rem; color: var(--muted); min-height: 1.4em; }
+  #status.err { color: var(--err); }
+  #status.ok { color: var(--ok); }
+  progress { width: 100%; height: 6px; margin-top: 10px; border-radius: 3px;
+    accent-color: var(--accent); display: none; }
+  progress[data-on] { display: block; }
+  #result { margin-top: 18px; display: none; }
+  #result[data-on] { display: block; }
+  audio { width: 100%; margin-bottom: 10px; }
+  a.dl { display: inline-block; text-decoration: none; color: var(--accent);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 10px 16px; font-size: .9rem; font-weight: 500; background: var(--surface); }
+  footer { margin-top: 26px; font-size: .76rem; color: var(--muted); line-height: 1.9;
+    overflow-wrap: anywhere; }
+  code { font-size: .95em; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 5px; padding: 2px 6px; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Voz</h1>
+  <span>texto a voz, sin servidor</span>
+</header>
+
+<div class="row">
+  <label for="text">Texto</label>
+  <textarea id="text" placeholder="Escribe o pega aquí lo que quieras escuchar…" autocapitalize="sentences" spellcheck="true"></textarea>
+</div>
+
+<div class="grid row">
+  <div>
+    <label for="voice">Voz</label>
+    <select id="voice">
+      <optgroup label="Español (España)">
+        <option value="es_ES-davefx-medium" selected>Dave — masculina (63 MB)</option>
+        <option value="es_ES-sharvard-medium">Sharvard — femenina (77 MB)</option>
+        <option value="es_ES-carlfm-x_low">Carl — masculina, ligera y rápida (28 MB)</option>
+      </optgroup>
+      <optgroup label="Español (México)">
+        <option value="es_MX-claude-high">Claude — masculina, alta calidad (63 MB)</option>
+        <option value="es_MX-ald-medium">Ald — masculina (63 MB)</option>
+      </optgroup>
+      <optgroup label="Inglés">
+        <option value="en_US-hfc_female-medium">HFC — femenina, EE. UU. (63 MB)</option>
+        <option value="en_GB-alba-medium">Alba — femenina, Reino Unido (63 MB)</option>
+      </optgroup>
+    </select>
+  </div>
+  <div id="speedWrap">
+    <label for="speed">Velocidad · <span id="speedVal">1.0×</span></label>
+    <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1">
+  </div>
+</div>
+
+<button class="primary" id="go">Generar audio</button>
+<progress id="bar" max="100" value="0"></progress>
+<div id="status"></div>
+
+<div id="result">
+  <audio id="player" controls preload="auto"></audio>
+  <a class="dl" id="dl" download="voz.wav">Descargar WAV</a>
+</div>
+
+<footer>
+  La primera vez que uses una voz se descarga su modelo y queda guardado en el
+  navegador; a partir de ahí funciona sin conexión. Todo se genera en tu propio
+  dispositivo: el texto no sale de aquí.
+  <br>Para instalarla como app, usa <code>Añadir a pantalla de inicio</code> en el menú del navegador.
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

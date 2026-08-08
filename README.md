@@ -113,3 +113,20 @@ Nada de esto usa modelos ni IA — es Web Audio API nativa, salvo el cambio de t
 - **Auriculares**: si activas "Escuchar en directo" sin auriculares, el micrófono capta
   lo que sale del altavoz y se realimenta (pitido). La grabación no depende de esto —
   funciona igual con la escucha en directo apagada.
+
+### Voz de perrito (alta calidad, no en directo)
+
+Los efectos de arriba tienen un límite de calidad inherente: al procesar en tiempo real,
+cualquier cambio de tono que preserve la duración necesita algún tipo de solapado de
+"granos" de audio, y eso siempre deja un temblor audible por poco que se optimice.
+
+Esta función es distinta a propósito: **graba primero, transforma después**, usando el
+truco de toda la vida del "efecto ardilla" — reproducir el audio más rápido (`playbackRate`
+en un `OfflineAudioContext`) sube el tono y los formantes a la vez, con el remuestreo nativo
+del navegador, sin ningún algoritmo casero de por medio. Encadena, en orden: paso bajo
+(quita aspereza en los agudos), un realce suave de presencia, compresor de dinámica, y una
+reverb corta generada con ruido con caída exponencial (sin fichero de audio, todo calculado).
+
+Usa un segundo `AudioWorkletNode` con la misma clase `tap` del fichero de efectos en directo,
+conectado en paralelo directamente al micrófono (nunca al efecto en directo que esté activo),
+así que graba siempre audio limpio sin importar qué esté seleccionado arriba.

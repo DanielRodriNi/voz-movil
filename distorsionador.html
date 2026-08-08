@@ -90,6 +90,8 @@
   .rec-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--err);
     margin-right: 7px; animation: pulse 1s infinite; }
   @keyframes pulse { 50% { opacity: .3; } }
+  h2 { font-size: 1.05rem; margin: 30px 0 4px; }
+  p.sub { font-size: .85rem; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
   footer { margin-top: 26px; font-size: .76rem; color: var(--muted); line-height: 1.9; overflow-wrap: anywhere; }
 </style>
 </head>
@@ -136,6 +138,24 @@
 <div id="result">
   <audio id="player" controls></audio>
   <a class="dl" id="dl" download="distorsion.wav">Descargar WAV</a>
+</div>
+
+<h2>🐶 Voz de perrito (alta calidad)</h2>
+<p class="sub">
+  Los efectos de arriba son en directo, así que tienen un límite de calidad para no
+  acumular retraso. Este funciona distinto: <b>graba tu voz normal y la transformo después</b>,
+  con el mismo remuestreo nativo del navegador que usan los efectos "ardilla" de los dibujos —
+  sube el tono y suaviza el timbre a la vez, sin el temblor de los efectos en directo.
+</p>
+
+<div class="row">
+  <button id="dogRec" disabled>● Grabar mi voz</button>
+</div>
+<div id="dogStatus" style="font-size:.88rem;color:var(--muted);min-height:1.4em"></div>
+
+<div id="dogResult" style="display:none;margin-top:14px">
+  <audio id="dogPlayer" controls></audio>
+  <a class="dl" id="dogDl" download="perrito.wav">Descargar WAV</a>
 </div>
 
 <footer>

@@ -8,7 +8,13 @@ const els = {
   mic: $('mic'), effects: $('effects'), monitor: $('monitor'), rec: $('rec'),
   status: $('status'), result: $('result'), player: $('player'), dl: $('dl'),
   dogRec: $('dogRec'), dogStatus: $('dogStatus'), dogResult: $('dogResult'),
-  dogPlayer: $('dogPlayer'), dogDl: $('dogDl'),
+  dogPlayer: $('dogPlayer'), dogDl: $('dogDl'), dogApply: $('dogApply'),
+  subtabLive: $('subtabLive'), subtabDog: $('subtabDog'),
+  tabLive: $('tab-live'), tabDog: $('tab-dog'),
+  dogSpeed: $('dogSpeed'), dogSpeedVal: $('dogSpeedVal'),
+  dogSoft: $('dogSoft'), dogSoftVal: $('dogSoftVal'),
+  dogBright: $('dogBright'), dogBrightVal: $('dogBrightVal'),
+  dogWarmth: $('dogWarmth'), dogWarmthVal: $('dogWarmthVal'),
 };
 
 let audioCtx = null;
@@ -23,6 +29,49 @@ let lastUrl = null;
 let dogRecording = false;
 let dogChunks = [];
 let dogLastUrl = null;
+let dogRaw = null; // { samples, sampleRate } de la ultima grabacion, para poder regenerar sin volver a grabar
+
+// --- Pestañas: En directo / Voz de perrito ---
+els.subtabLive.addEventListener('click', () => showTab('live'));
+els.subtabDog.addEventListener('click', () => showTab('dog'));
+
+function showTab(tab) {
+  els.subtabLive.classList.toggle('on', tab === 'live');
+  els.subtabDog.classList.toggle('on', tab === 'dog');
+  els.tabLive.style.display = tab === 'live' ? '' : 'none';
+  els.tabDog.style.display = tab === 'dog' ? '' : 'none';
+}
+
+// --- Sliders de "voz de perrito": persisten en localStorage y regeneran solos al soltar ---
+const dogSliders = [
+  { el: els.dogSpeed, val: els.dogSpeedVal, key: 'speed', fmt: (v) => v.toFixed(2) + '×' },
+  { el: els.dogSoft, val: els.dogSoftVal, key: 'soft', fmt: (v) => Math.round(v) + ' Hz' },
+  { el: els.dogBright, val: els.dogBrightVal, key: 'bright', fmt: (v) => v.toFixed(1) + ' dB' },
+  { el: els.dogWarmth, val: els.dogWarmthVal, key: 'warmth', fmt: (v) => Math.round(v) + '%' },
+];
+
+for (const s of dogSliders) {
+  try {
+    const saved = localStorage.getItem('distorsionador.dog.' + s.key);
+    if (saved !== null) s.el.value = saved;
+  } catch { /* modo privado: seguimos con los valores por defecto */ }
+  s.val.textContent = s.fmt(Number(s.el.value));
+
+  s.el.addEventListener('input', () => { s.val.textContent = s.fmt(Number(s.el.value)); });
+  s.el.addEventListener('change', () => {
+    try { localStorage.setItem('distorsionador.dog.' + s.key, s.el.value); } catch { /* ignorar */ }
+    if (dogRaw) regenerateDogVoice();
+  });
+}
+
+function dogParams() {
+  return {
+    speed: Number(els.dogSpeed.value),
+    soft: Number(els.dogSoft.value),
+    bright: Number(els.dogBright.value),
+    warmth: Number(els.dogWarmth.value) / 100,
+  };
+}
 
 function say(msg, kind = '') {
   els.status.textContent = msg;
@@ -228,19 +277,31 @@ els.dogRec.addEventListener('click', async () => {
     dryTapNode.port.postMessage({ cmd: 'start' });
     dogRecording = true;
     els.dogRec.innerHTML = '<span class="rec-dot"></span>Detener y transformar';
-    els.dogResult.style.display = 'none';
+    els.dogResult.removeAttribute('data-on');
     dogSay('Grabando tu voz…');
   } else {
     dryTapNode.port.postMessage({ cmd: 'stop' });
     dogRecording = false;
     els.dogRec.textContent = '● Grabar mi voz';
-    await finishDogRecording();
+
+    const total = dogChunks.reduce((n, c) => n + c.length, 0);
+    if (!total) { dogSay('No se grabó nada.', 'err'); return; }
+    const merged = new Float32Array(total);
+    let pos = 0;
+    for (const c of dogChunks) { merged.set(c, pos); pos += c.length; }
+    dogChunks = [];
+
+    dogRaw = { samples: merged, sampleRate: audioCtx.sampleRate };
+    els.dogApply.disabled = false;
+    await regenerateDogVoice();
   }
 });
 
+els.dogApply.addEventListener('click', () => { if (dogRaw) regenerateDogVoice(); });
+
 function dogSay(msg, kind = '') {
   els.dogStatus.textContent = msg;
-  els.dogStatus.style.color = kind === 'err' ? 'var(--err)' : kind === 'ok' ? 'var(--ok)' : 'var(--muted)';
+  els.dogStatus.className = kind;
 }
 
 /**
@@ -251,8 +312,8 @@ function dogSay(msg, kind = '') {
  * Web Audio -- nada de esto es un algoritmo casero, por eso no tiene el
  * temblor de los efectos en directo.
  */
-async function makePerritoVoice(samples, sampleRate) {
-  const speed = 1.32; // sube el tono ~4-5 semitonos junto con los formantes
+async function makePerritoVoice(samples, sampleRate, params) {
+  const { speed, soft, bright, warmth } = params;
 
   const dryBuffer = audioCtx.createBuffer(1, samples.length, sampleRate);
   dryBuffer.copyToChannel(samples, 0);
@@ -267,14 +328,14 @@ async function makePerritoVoice(samples, sampleRate) {
   // Quita aspereza en agudos (las "eses" se vuelven muy afiladas al subir el tono)
   const lowpass = off.createBiquadFilter();
   lowpass.type = 'lowpass';
-  lowpass.frequency.value = 8500;
+  lowpass.frequency.value = soft;
   lowpass.Q.value = 0.7;
 
   // Un poco de brillo/caracter, sin pasarse
   const presence = off.createBiquadFilter();
   presence.type = 'peaking';
   presence.frequency.value = 2800;
-  presence.gain.value = 2.5;
+  presence.gain.value = bright;
   presence.Q.value = 1;
 
   // Suaviza picos de volumen para que quede parejo
@@ -288,8 +349,8 @@ async function makePerritoVoice(samples, sampleRate) {
   // Reverb corta y calida (impulso generado a mano, sin descargar nada)
   const convolver = off.createConvolver();
   convolver.buffer = softReverbIR(off, sampleRate);
-  const dry = off.createGain(); dry.gain.value = 0.85;
-  const wet = off.createGain(); wet.gain.value = 0.15;
+  const dry = off.createGain(); dry.gain.value = 1 - warmth;
+  const wet = off.createGain(); wet.gain.value = warmth;
 
   src.connect(lowpass);
   lowpass.connect(presence);
@@ -322,26 +383,24 @@ function softReverbIR(ctx, sampleRate) {
   return ir;
 }
 
-async function finishDogRecording() {
-  const total = dogChunks.reduce((n, c) => n + c.length, 0);
-  if (!total) { dogSay('No se grabó nada.', 'err'); return; }
-
-  const merged = new Float32Array(total);
-  let pos = 0;
-  for (const c of dogChunks) { merged.set(c, pos); pos += c.length; }
-  dogChunks = [];
-
+async function regenerateDogVoice() {
   dogSay('Transformando…');
-  const transformed = await makePerritoVoice(merged, audioCtx.sampleRate);
-  const wav = encodeWav(transformed, audioCtx.sampleRate);
+  els.dogApply.disabled = true;
+  try {
+    const { samples, sampleRate } = dogRaw;
+    const transformed = await makePerritoVoice(samples, sampleRate, dogParams());
+    const wav = encodeWav(transformed, sampleRate);
 
-  if (dogLastUrl) URL.revokeObjectURL(dogLastUrl);
-  dogLastUrl = URL.createObjectURL(wav);
-  els.dogPlayer.src = dogLastUrl;
-  els.dogDl.href = dogLastUrl;
-  els.dogDl.download = `perrito-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '')}.wav`;
-  els.dogResult.style.display = 'block';
-  dogSay(`Listo · ${(wav.size / 1e6).toFixed(1)} MB`, 'ok');
+    if (dogLastUrl) URL.revokeObjectURL(dogLastUrl);
+    dogLastUrl = URL.createObjectURL(wav);
+    els.dogPlayer.src = dogLastUrl;
+    els.dogDl.href = dogLastUrl;
+    els.dogDl.download = `perrito-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '')}.wav`;
+    els.dogResult.setAttribute('data-on', '');
+    dogSay(`Listo · ${(wav.size / 1e6).toFixed(1)} MB`, 'ok');
+  } finally {
+    els.dogApply.disabled = false;
+  }
 }
 
 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {

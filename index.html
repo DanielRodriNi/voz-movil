@@ -49,11 +49,14 @@
     margin: 0 auto;
     -webkit-text-size-adjust: 100%;
   }
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
-  header .titles { display: flex; align-items: baseline; gap: 10px; }
+  .appnav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 4px; margin-bottom: 16px; }
+  .appnav a { flex: 1; text-align: center; padding: 10px 6px; border-radius: 10px; text-decoration: none;
+    color: var(--muted); font-size: .85rem; font-weight: 600; }
+  .appnav a.on { background: var(--accent); color: var(--accent-text); }
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; }
   h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
   header span { color: var(--muted); font-size: .8rem; }
-  header nav a { color: var(--accent); text-decoration: none; font-size: .85rem; font-weight: 600; }
   label { display: block; font-size: .82rem; color: var(--muted); margin: 0 0 6px; font-weight: 500; }
   textarea, select, button {
     font: inherit; color: var(--text); width: 100%;
@@ -97,12 +100,14 @@
 </head>
 <body>
 
+<div class="appnav">
+  <a href="index.html" class="on">🗣️ Texto a voz</a>
+  <a href="distorsionador.html">🎙️ Distorsionador</a>
+</div>
+
 <header>
-  <div class="titles">
-    <h1>Voz</h1>
-    <span>texto a voz, sin servidor</span>
-  </div>
-  <nav><a href="distorsionador.html">Distorsionador →</a></nav>
+  <h1>Voz</h1>
+  <span>texto a voz, sin servidor</span>
 </header>
 
 <div class="row">

@@ -130,3 +130,9 @@ reverb corta generada con ruido con caída exponencial (sin fichero de audio, to
 Usa un segundo `AudioWorkletNode` con la misma clase `tap` del fichero de efectos en directo,
 conectado en paralelo directamente al micrófono (nunca al efecto en directo que esté activo),
 así que graba siempre audio limpio sin importar qué esté seleccionado arriba.
+
+Los 4 parámetros son ajustables desde la propia interfaz (deslizadores), no hace falta tocar
+código: **tono/tamaño** (el `playbackRate`, 1.0–1.8×), **suavidad** (frecuencia del paso bajo,
+4000–14000 Hz), **brillo** (ganancia del realce de presencia, 0–6 dB) y **calidez** (mezcla de
+la reverb, 0–40%). Se guardan en `localStorage` y, si ya hay una grabación hecha, mover
+cualquier deslizador la vuelve a generar sola (sin regrabar) — para poder afinar de oído.

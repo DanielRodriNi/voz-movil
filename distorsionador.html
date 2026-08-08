@@ -51,11 +51,16 @@
     margin: 0 auto;
     -webkit-text-size-adjust: 100%;
   }
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
-  header .titles { display: flex; align-items: baseline; gap: 10px; }
+  .appnav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 4px; margin-bottom: 16px; }
+  .appnav a { flex: 1; text-align: center; padding: 10px 6px; border-radius: 10px; text-decoration: none;
+    color: var(--muted); font-size: .85rem; font-weight: 600; }
+  .appnav a.on { background: var(--accent); color: var(--accent-text); }
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
   h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
   header span.tag { color: var(--muted); font-size: .8rem; }
-  nav a { color: var(--accent); text-decoration: none; font-size: .85rem; font-weight: 600; }
+  .steps { font-size: .82rem; color: var(--muted); margin: 0 0 16px; }
+  .steps b { color: var(--text); }
   .row { margin-bottom: 14px; }
   button {
     font: inherit; color: var(--text); width: 100%;
@@ -68,21 +73,24 @@
     border-color: transparent; font-weight: 600; padding: 15px;
   }
   button.primary:disabled { opacity: .5; cursor: default; }
+  button:disabled { opacity: .5; cursor: default; }
+  .subtabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .subtabs button { padding: 12px 8px; font-size: .9rem; font-weight: 600; }
+  .subtabs button.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
   .effects { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .effects button { padding: 14px 6px; font-size: .88rem; font-weight: 500; text-align: center; }
   .effects button.on { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
-  .effects button:disabled { opacity: .4; cursor: default; }
   .toggle { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border);
     border-radius: var(--radius); background: var(--surface); }
   .toggle input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
   .toggle label { font-size: .88rem; }
   .warn-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn);
     border-radius: 10px; padding: 12px 14px; font-size: .85rem; color: var(--muted); margin-bottom: 14px; }
-  #status { margin-top: 14px; font-size: .88rem; color: var(--muted); min-height: 1.4em; }
-  #status.err { color: var(--err); }
-  #status.ok { color: var(--ok); }
-  #result { margin-top: 18px; display: none; }
-  #result[data-on] { display: block; }
+  #status, #dogStatus { margin-top: 14px; font-size: .88rem; color: var(--muted); min-height: 1.4em; }
+  #status.err, #dogStatus.err { color: var(--err); }
+  #status.ok, #dogStatus.ok { color: var(--ok); }
+  #result, #dogResult { margin-top: 18px; display: none; }
+  #result[data-on], #dogResult[data-on] { display: block; }
   audio { width: 100%; margin-bottom: 10px; }
   a.dl { display: inline-block; text-decoration: none; color: var(--accent);
     border: 1px solid var(--border); border-radius: var(--radius);
@@ -90,78 +98,116 @@
   .rec-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--err);
     margin-right: 7px; animation: pulse 1s infinite; }
   @keyframes pulse { 50% { opacity: .3; } }
-  h2 { font-size: 1.05rem; margin: 30px 0 4px; }
-  p.sub { font-size: .85rem; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+  p.sub { font-size: .85rem; color: var(--muted); margin: 0 0 16px; line-height: 1.5; }
+  .slider-row { margin-bottom: 16px; }
+  .slider-row label { display: flex; justify-content: space-between; font-size: .84rem; color: var(--muted);
+    margin-bottom: 6px; font-weight: 500; }
+  .slider-row label b { color: var(--text); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  #dogApply { margin-top: 4px; }
   footer { margin-top: 26px; font-size: .76rem; color: var(--muted); line-height: 1.9; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
 
+<div class="appnav">
+  <a href="index.html">🗣️ Texto a voz</a>
+  <a href="distorsionador.html" class="on">🎙️ Distorsionador</a>
+</div>
+
 <header>
-  <div class="titles">
-    <h1>Distorsionador</h1>
-    <span class="tag">efectos de voz en directo</span>
-  </div>
-  <nav><a href="index.html">← Texto a voz</a></nav>
+  <h1>Distorsionador</h1>
+  <span class="tag">efectos de voz desde el micro</span>
 </header>
 
-<div class="warn-box">
-  <b>Usa auriculares</b> si activas la escucha en directo: el micrófono y el altavoz del
-  móvil están demasiado cerca y se produce un pitido de realimentación. Sin auriculares,
-  deja la escucha apagada y usa solo «Grabar».
-</div>
+<p class="steps"><b>1.</b> Activa el micrófono &nbsp; → &nbsp; <b>2.</b> elige un modo abajo.</p>
 
 <div class="row">
   <button class="primary" id="mic">Activar micrófono</button>
 </div>
 
-<div class="row effects" id="effects">
-  <button data-fx="normal" class="on" disabled>Normal</button>
-  <button data-fx="grave" disabled>Voz grave</button>
-  <button data-fx="aguda" disabled>Voz aguda</button>
-  <button data-fx="robot" disabled>Robot</button>
-  <button data-fx="eco" disabled>Eco</button>
-  <button data-fx="telefono" disabled>Teléfono</button>
+<div class="subtabs">
+  <button class="on" id="subtabLive" data-tab="live">🎛️ En directo</button>
+  <button id="subtabDog" data-tab="dog">🐶 Voz de perrito</button>
 </div>
 
-<div class="row toggle">
-  <input type="checkbox" id="monitor" disabled>
-  <label for="monitor">🔊 Escuchar en directo (requiere auriculares)</label>
-</div>
+<section id="tab-live">
+  <div class="warn-box">
+    <b>Usa auriculares</b> si activas la escucha en directo: el micrófono y el altavoz del
+    móvil están demasiado cerca y se produce un pitido de realimentación. Sin auriculares,
+    deja la escucha apagada y usa solo «Grabar».
+  </div>
 
-<div class="row">
-  <button id="rec" disabled>● Grabar</button>
-</div>
+  <div class="row effects" id="effects">
+    <button data-fx="normal" class="on" disabled>Normal</button>
+    <button data-fx="grave" disabled>Voz grave</button>
+    <button data-fx="aguda" disabled>Voz aguda</button>
+    <button data-fx="robot" disabled>Robot</button>
+    <button data-fx="eco" disabled>Eco</button>
+    <button data-fx="telefono" disabled>Teléfono</button>
+  </div>
 
-<div id="status"></div>
+  <div class="row toggle">
+    <input type="checkbox" id="monitor" disabled>
+    <label for="monitor">🔊 Escuchar en directo (requiere auriculares)</label>
+  </div>
 
-<div id="result">
-  <audio id="player" controls></audio>
-  <a class="dl" id="dl" download="distorsion.wav">Descargar WAV</a>
-</div>
+  <div class="row">
+    <button id="rec" disabled>● Grabar</button>
+  </div>
 
-<h2>🐶 Voz de perrito (alta calidad)</h2>
-<p class="sub">
-  Los efectos de arriba son en directo, así que tienen un límite de calidad para no
-  acumular retraso. Este funciona distinto: <b>graba tu voz normal y la transformo después</b>,
-  con el mismo remuestreo nativo del navegador que usan los efectos "ardilla" de los dibujos —
-  sube el tono y suaviza el timbre a la vez, sin el temblor de los efectos en directo.
-</p>
+  <div id="status"></div>
 
-<div class="row">
-  <button id="dogRec" disabled>● Grabar mi voz</button>
-</div>
-<div id="dogStatus" style="font-size:.88rem;color:var(--muted);min-height:1.4em"></div>
+  <div id="result">
+    <audio id="player" controls></audio>
+    <a class="dl" id="dl" download="distorsion.wav">Descargar WAV</a>
+  </div>
+</section>
 
-<div id="dogResult" style="display:none;margin-top:14px">
-  <audio id="dogPlayer" controls></audio>
-  <a class="dl" id="dogDl" download="perrito.wav">Descargar WAV</a>
-</div>
+<section id="tab-dog" style="display:none">
+  <p class="sub">
+    Esta graba tu voz normal y la transforma <b>después</b> (no en directo), así que suena
+    mucho más limpia que los efectos de la otra pestaña. Ajusta los deslizadores a tu gusto —
+    si ya tienes una grabación hecha, se vuelve a generar sola al soltar cada uno, sin que
+    tengas que grabar otra vez.
+  </p>
+
+  <div class="row">
+    <button id="dogRec" disabled>● Grabar mi voz</button>
+  </div>
+
+  <div class="slider-row">
+    <label for="dogSpeed">Tono / tamaño <b><span id="dogSpeedVal">1.32×</span></b></label>
+    <input type="range" id="dogSpeed" min="1" max="1.8" step="0.02" value="1.32">
+  </div>
+  <div class="slider-row">
+    <label for="dogSoft">Suavidad (quita aspereza) <b><span id="dogSoftVal">8500 Hz</span></b></label>
+    <input type="range" id="dogSoft" min="4000" max="14000" step="250" value="8500">
+  </div>
+  <div class="slider-row">
+    <label for="dogBright">Brillo <b><span id="dogBrightVal">2.5 dB</span></b></label>
+    <input type="range" id="dogBright" min="0" max="6" step="0.5" value="2.5">
+  </div>
+  <div class="slider-row">
+    <label for="dogWarmth">Calidez (reverb) <b><span id="dogWarmthVal">15%</span></b></label>
+    <input type="range" id="dogWarmth" min="0" max="40" step="5" value="15">
+  </div>
+
+  <div class="row">
+    <button id="dogApply" disabled>Regenerar con estos ajustes</button>
+  </div>
+
+  <div id="dogStatus"></div>
+
+  <div id="dogResult">
+    <audio id="dogPlayer" controls></audio>
+    <a class="dl" id="dogDl" download="perrito.wav">Descargar WAV</a>
+  </div>
+</section>
 
 <footer>
   Todo el procesado ocurre en tu dispositivo: el audio del micrófono nunca sale de aquí.
-  No hace falta descargar ningún modelo — los efectos son puro procesado de audio del
-  propio navegador.
+  No hace falta descargar ningún modelo — es puro procesado de audio del propio navegador.
 </footer>
 
 <script type="module" src="distorsionador.js"></script>

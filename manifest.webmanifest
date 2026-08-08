@@ -1,6 +1,6 @@
 {
-  "name": "Voz — Texto a voz",
-  "short_name": "Voz",
+  "name": "voz-tts — Texto a voz",
+  "short_name": "voz-tts",
   "description": "Texto a voz en español, 100% en el navegador y sin conexión.",
   "start_url": ".",
   "scope": ".",

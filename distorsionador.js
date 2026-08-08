@@ -50,16 +50,21 @@ const dogSliders = [
   { el: els.dogWarmth, val: els.dogWarmthVal, key: 'warmth', fmt: (v) => Math.round(v) + '%' },
 ];
 
+// Prefijo "v2": al cambiar los valores por defecto de fabrica, esto deja huerfanos
+// los que ya hubiera guardados en el movil (bajo el prefijo viejo) en vez de que
+// sigan pisando los nuevos por defecto para siempre.
+const DOG_STORAGE_PREFIX = 'distorsionador.dog.v2.';
+
 for (const s of dogSliders) {
   try {
-    const saved = localStorage.getItem('distorsionador.dog.' + s.key);
+    const saved = localStorage.getItem(DOG_STORAGE_PREFIX + s.key);
     if (saved !== null) s.el.value = saved;
   } catch { /* modo privado: seguimos con los valores por defecto */ }
   s.val.textContent = s.fmt(Number(s.el.value));
 
   s.el.addEventListener('input', () => { s.val.textContent = s.fmt(Number(s.el.value)); });
   s.el.addEventListener('change', () => {
-    try { localStorage.setItem('distorsionador.dog.' + s.key, s.el.value); } catch { /* ignorar */ }
+    try { localStorage.setItem(DOG_STORAGE_PREFIX + s.key, s.el.value); } catch { /* ignorar */ }
     if (dogRaw) regenerateDogVoice();
   });
 }

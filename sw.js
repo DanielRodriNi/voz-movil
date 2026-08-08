@@ -1,7 +1,7 @@
 // Cachea el "shell" de la app y los modulos del CDN para que funcione sin conexion.
 // Los modelos de voz NO pasan por aqui: la libreria ya los guarda en OPFS.
 
-const CACHE = 'voz-v8';
+const CACHE = 'voz-v9';
 
 const SHELL = [
   '.',

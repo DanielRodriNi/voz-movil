@@ -1,12 +1,13 @@
 // Cachea el "shell" de la app y los modulos del CDN para que funcione sin conexion.
 // Los modelos de voz NO pasan por aqui: la libreria ya los guarda en OPFS.
 
-const CACHE = 'voz-v2';
+const CACHE = 'voz-v3';
 
 const SHELL = [
   '.',
   'index.html',
   'app.js',
+  'vendor/piper-tts-web.js',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',

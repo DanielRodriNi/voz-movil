@@ -1,7 +1,9 @@
 // Texto a voz 100% en el navegador con Piper (ONNX Runtime Web + espeak-ng en WASM).
 // No hay servidor: el modelo se descarga una vez y se guarda en el dispositivo.
 
-const PIPER_URL = 'https://cdn.jsdelivr.net/npm/@mintplex-labs/piper-tts-web@1.0.4/+esm';
+// Copia local parcheada: la oficial de jsDelivr fuerza siempre el hablante 0
+// en voces multi-hablante (ver vendor/piper-tts-web.js).
+const PIPER_URL = './vendor/piper-tts-web.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {
@@ -10,11 +12,22 @@ const els = {
   player: $('player'), dl: $('dl'),
 };
 
-let piper = null;        // modulo cargado en diferido
-let session = null;      // TtsSession reutilizada entre frases
-let loadedVoice = null;  // voz que hay realmente cargada en la sesion
+let piper = null;         // modulo cargado en diferido
+let session = null;       // TtsSession reutilizada entre frases
+let loadedVoice = null;   // voz que hay realmente cargada en la sesion
+let loadedSpeaker = null; // hablante que hay realmente cargado en la sesion
 let busy = false;
 let lastUrl = null;
+
+/**
+ * El <option> puede llevar el hablante pegado como "voiceId:speakerId"
+ * (p.ej. voces con varios locutores en el mismo modelo, tipo sharvard).
+ * Sin ":" se asume el hablante 0.
+ */
+function parseVoiceValue(v) {
+  const i = v.indexOf(':');
+  return i === -1 ? { voiceId: v, speakerId: 0 } : { voiceId: v.slice(0, i), speakerId: Number(v.slice(i + 1)) };
+}
 
 function say(msg, kind = '') {
   els.status.textContent = msg;
@@ -137,16 +150,19 @@ async function buildWav(blobs) {
 }
 
 /**
- * Devuelve una sesion lista para `voiceId`.
- * TtsSession es un singleton que NO recarga el modelo al cambiar de voz,
- * asi que al cambiarla hay que descartar la instancia y crear una nueva.
+ * Devuelve una sesion lista para `voiceId` + `speakerId`.
+ * TtsSession es un singleton que NO recarga el modelo al cambiar de voz
+ * (ni de hablante), asi que al cambiar cualquiera de los dos hay que
+ * descartar la instancia y crear una nueva. Si el .onnx ya esta en OPFS
+ * (caso tipico al cambiar solo de hablante) no se vuelve a descargar.
  */
-async function getSession(voiceId, onProgress) {
-  if (session && loadedVoice === voiceId) return session;
+async function getSession(voiceId, speakerId, onProgress) {
+  if (session && loadedVoice === voiceId && loadedSpeaker === speakerId) return session;
 
   piper.TtsSession._instance = null;
-  session = await piper.TtsSession.create({ voiceId, progress: onProgress });
+  session = await piper.TtsSession.create({ voiceId, speakerId, progress: onProgress });
   loadedVoice = voiceId;
+  loadedSpeaker = speakerId;
   return session;
 }
 
@@ -166,8 +182,8 @@ async function generate() {
       piper = await import(/* @vite-ignore */ PIPER_URL);
     }
 
-    const voiceId = els.voice.value;
-    const isNew = loadedVoice !== voiceId;
+    const { voiceId, speakerId } = parseVoiceValue(els.voice.value);
+    const isNew = loadedVoice !== voiceId || loadedSpeaker !== speakerId;
     if (isNew) say('Preparando la voz… (la primera vez descarga el modelo)');
 
     const onProgress = (p) => {
@@ -177,7 +193,7 @@ async function generate() {
       say(`Descargando la voz… ${pct}%`);
     };
 
-    const s = await getSession(voiceId, onProgress);
+    const s = await getSession(voiceId, speakerId, onProgress);
 
     const chunks = splitText(text);
     const parts = [];
@@ -208,6 +224,7 @@ async function generate() {
     // Una voz a medio descargar deja la sesion inservible: la descartamos
     session = null;
     loadedVoice = null;
+    loadedSpeaker = null;
     say('Error: ' + (err && err.message ? err.message : err), 'err');
   } finally {
     busy = false;

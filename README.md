@@ -70,6 +70,12 @@ que en la raíz de un dominio propio.
 - **Cambio de voz**: `TtsSession` de la librería es un *singleton* que no recarga el modelo
   al cambiar `voiceId`; hay que descartar la instancia (`TtsSession._instance = null`) o
   seguiría sonando la voz anterior.
+- **Hablante dentro de una misma voz** (p. ej. `es_ES-sharvard-medium`, que tiene M=0 y F=1
+  en su `speaker_id_map`): la librería oficial de jsDelivr ignora el hablante y siempre
+  usa el 0. Por eso `vendor/piper-tts-web.js` es una copia local parcheada que acepta
+  `speakerId` en `TtsSession.create()`; el `<select>` codifica el hablante como
+  `voiceId:speakerId` (p. ej. `es_ES-sharvard-medium:1`) y `app.js` lo separa antes de
+  usarlo. Si se actualiza la librería del CDN, este parche hay que rehacerlo a mano.
 
 ## Compatibilidad
 

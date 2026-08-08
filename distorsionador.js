@@ -305,63 +305,25 @@ function dogSay(msg, kind = '') {
 }
 
 /**
- * Estira o comprime el audio en el tiempo SIN tocar el tono, mediante solapa-y-suma
- * (OLA): trocea la señal en ventanas de Hann que se leen cada `Ha` muestras y se
- * vuelven a escribir cada `Hs` muestras (mas separadas si se alarga, mas juntas si
- * se acorta). Se normaliza por la suma real de ventanas en cada punto, en vez de
- * asumir solape perfecto, porque `Hs` varia y esa asuncion solo vale cuando no se
- * estira nada.
+ * Sube o baja el tono remuestreando el audio (el mismo truco de toda la vida del
+ * "efecto ardilla" de los dibujos): sube o baja la velocidad junto con el tono y
+ * los formantes, con el remuestreo nativo del navegador, sin ningun algoritmo
+ * casero de por medio.
  *
- * Es la mitad del truco para cambiar el tono sin cambiar la duracion: primero se
- * estira aqui (a duracion final = original * ratio), y despues se remuestrea a
- * velocidad `ratio` -- eso vuelve a comprimir la duracion a la original, pero como
- * el remuestreo tambien es lo que desplaza el tono, el resultado es tono desplazado
- * y duracion intacta.
- */
-function timeStretch(samples, ratio, sampleRate) {
-  const frameSize = Math.max(256, Math.round(sampleRate * 0.04)) & ~1; // ~40ms, par
-  const Ha = frameSize / 2; // salto de analisis (lectura), fijo
-  const Hs = Math.max(1, Math.round(Ha * ratio)); // salto de sintesis (escritura)
-
-  const win = new Float32Array(frameSize);
-  for (let i = 0; i < frameSize; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (frameSize - 1));
-
-  const numFrames = Math.max(0, Math.floor((samples.length - frameSize) / Ha) + 1);
-  const outLen = numFrames > 0 ? (numFrames - 1) * Hs + frameSize : frameSize;
-  const out = new Float32Array(outLen);
-  const norm = new Float32Array(outLen);
-
-  let inPos = 0, outPos = 0;
-  for (let f = 0; f < numFrames; f++) {
-    for (let i = 0; i < frameSize; i++) {
-      const s = samples[inPos + i] * win[i];
-      out[outPos + i] += s;
-      norm[outPos + i] += win[i];
-    }
-    inPos += Ha;
-    outPos += Hs;
-  }
-  for (let i = 0; i < out.length; i++) {
-    if (norm[i] > 1e-6) out[i] /= norm[i];
-  }
-  return out;
-}
-
-/**
- * Cambia el tono en semitonos SIN afectar a la duracion (estira en el tiempo y
- * despues remuestrea, ver `timeStretch`), suaviza el timbre para quitar aspereza,
- * añade un toque de brillo y un pelín de reverb calida.
+ * Se probo a desacoplar el tono de la velocidad con un estirado previo por
+ * solapa-y-suma (OLA), pero sin alinear las ventanas a la periodicidad del tono
+ * (lo que se conoce como WSOLA) suena robotico/roto en voz -- es una limitacion
+ * conocida de OLA a secas, no un bug puntual, y arreglarla bien requiere mas
+ * de lo que se puede afinar sin poder escuchar el resultado. Se descarto.
  */
 async function makePerritoVoice(samples, sampleRate, params) {
   const { semitones, soft, bright, warmth } = params;
   const ratio = 2 ** (semitones / 12);
 
-  const stretched = Math.abs(semitones) < 0.01 ? samples : timeStretch(samples, ratio, sampleRate);
+  const dryBuffer = audioCtx.createBuffer(1, samples.length, sampleRate);
+  dryBuffer.copyToChannel(samples, 0);
 
-  const dryBuffer = audioCtx.createBuffer(1, stretched.length, sampleRate);
-  dryBuffer.copyToChannel(stretched, 0);
-
-  const outLength = Math.ceil(stretched.length / ratio) + sampleRate; // margen para la cola de la reverb
+  const outLength = Math.ceil(samples.length / ratio) + sampleRate; // margen para la cola de la reverb
   const off = new OfflineAudioContext(1, outLength, sampleRate);
 
   const src = off.createBufferSource();

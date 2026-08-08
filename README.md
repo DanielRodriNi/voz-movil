@@ -120,31 +120,29 @@ Los efectos de arriba tienen un límite de calidad inherente: al procesar en tie
 cualquier cambio de tono que preserve la duración necesita algún tipo de solapado de
 "granos" de audio, y eso siempre deja un temblor audible por poco que se optimice.
 
-Esta función es distinta a propósito: **graba primero, transforma después**, con dos pasos
-en cadena para poder mover el tono sin arrastrar la velocidad (el "efecto ardilla" de
-`playbackRate` a secas sube tono y velocidad a la vez, que es justo lo que no se quería):
+Esta función es distinta a propósito: **graba primero, transforma después**, usando el
+truco de toda la vida del "efecto ardilla" — reproducir el audio más rápido o más lento
+(`playbackRate` en un `OfflineAudioContext`) sube o baja el tono junto con la velocidad,
+con el remuestreo nativo del navegador, sin ningún algoritmo casero de por medio. Encadena,
+en orden: paso bajo (quita aspereza en los agudos), un realce suave de presencia, compresor
+de dinámica, y una reverb corta generada con ruido con caída exponencial (sin fichero de
+audio, todo calculado).
 
-1. `timeStretch()` alarga o acorta el audio en el tiempo **sin tocar el tono**, con la
-   técnica clásica de solapa-y-suma (OLA): ventanas de Hann de ~40 ms leídas cada `Ha`
-   muestras y reescritas cada `Hs` muestras (más separadas si se alarga, más juntas si
-   se acorta), normalizando por la suma real de ventanas en cada punto en vez de asumir
-   solape perfecto — esa asunción solo vale cuando `Hs == Ha`, y aquí varía a propósito.
-2. El resultado, ya con la duración cambiada (`original × ratio`), se reproduce en un
-   `OfflineAudioContext` a velocidad `ratio` — eso comprime la duración de vuelta a la
-   original, y como el remuestreo es lo que desplaza el tono, el resultado final es
-   tono desplazado con la duración intacta.
-
-Después encadena, en ese orden: paso bajo (quita aspereza en los agudos), un realce suave
-de presencia, compresor de dinámica, y una reverb corta generada con ruido con caída
-exponencial (sin fichero de audio, todo calculado).
+> Se probó a desacoplar el tono de la velocidad con un estirado previo por solapa-y-suma
+> (OLA): ventanas de Hann leídas y reescritas a ritmos distintos antes del remuestreo. Sin
+> alinear las ventanas a la periodicidad del tono (lo que se conoce como WSOLA) suena
+> robótico/roto en voz — es una limitación conocida de OLA a secas, no un bug puntual, y
+> arreglarla bien pide más de lo que se puede afinar sin poder escuchar el resultado.
+> Se descartó a petición expresa: mejor tono+velocidad acoplados pero limpios, que
+> desacoplados pero rotos.
 
 Usa un segundo `AudioWorkletNode` con la misma clase `tap` del fichero de efectos en directo,
 conectado en paralelo directamente al micrófono (nunca al efecto en directo que esté activo),
 así que graba siempre audio limpio sin importar qué esté seleccionado arriba.
 
 Los 4 parámetros son ajustables desde la propia interfaz (deslizadores), no hace falta tocar
-código: **tono** (semitonos, −6 a +12, grave a agudo, duración intacta), **suavidad**
-(frecuencia del paso bajo, 4000–14000 Hz), **brillo** (ganancia del realce de presencia,
-0–6 dB) y **calidez** (mezcla de la reverb, 0–40%). Se guardan en `localStorage` y, si ya
-hay una grabación hecha, mover cualquier deslizador la vuelve a generar sola (sin regrabar)
-— para poder afinar de oído.
+código: **tono** (semitonos, −6 a +12, grave a agudo — también cambia la velocidad; habla
+más lento o más rápido al grabar si quieres compensarlo), **suavidad** (frecuencia del paso
+bajo, 4000–14000 Hz), **brillo** (ganancia del realce de presencia, 0–6 dB) y **calidez**
+(mezcla de la reverb, 0–40%). Se guardan en `localStorage` y, si ya hay una grabación hecha,
+mover cualquier deslizador la vuelve a generar sola (sin regrabar) — para poder afinar de oído.
